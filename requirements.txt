@@ -1,2 +1,14 @@
-# Project Dependencies
-# Add required python packages here
+# Core Machine Learning & Neural Networks
+torch>=2.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.2.0
+joblib>=1.2.0
+
+# Explainability
+shap>=0.42.0
+
+# LLM Layer & Environment Management
+python-dotenv>=1.0.0
+anthropic>=0.18.0
+openai>=1.0.0

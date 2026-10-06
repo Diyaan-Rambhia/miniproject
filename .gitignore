@@ -31,6 +31,7 @@ models/saved_weights/
 # Logs & OS generated
 *.log
 *.sqlite3
+backend_integration/events.db
 .DS_Store
 Thumbs.db
 /models/data/

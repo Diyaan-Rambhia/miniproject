@@ -5,12 +5,13 @@ Outputs: Saved signals.csv containing upstream model confidence/anomaly scores a
 """
 
 import os
+import joblib
 import numpy as np
 import pandas as pd
 import torch
 
 from models.transformer import config as trans_config
-from models.transformer.preprocessing import clean_data, encode_and_scale, build_sequences
+from models.transformer.preprocessing import clean_data, build_sequences
 from models.VAE import config as vae_config
 from models.VAE.evaluate import compute_anomaly_scores
 from models.DGA_detector import config as dga_config
@@ -27,7 +28,12 @@ def generate_signals_csv(transformer_model, vae_model, dga_model, output_path: s
     # 1. Load and process test flow dataset for Transformer and VAE
     df_flows = pd.read_csv(trans_config.TEST_CSV, low_memory=False)
     df_flows = clean_data(df_flows)
-    X_scaled, y_flows, label_encoder, scaler, feature_names = encode_and_scale(df_flows)
+    feature_names = joblib.load(os.path.join(trans_config.OUTPUT_DIR, "feature_names.joblib"))
+    scaler = joblib.load(os.path.join(trans_config.OUTPUT_DIR, "feature_scaler.joblib"))
+    label_encoder = joblib.load(os.path.join(trans_config.OUTPUT_DIR, "label_encoder.joblib"))
+    X_flows = df_flows.reindex(columns=feature_names)
+    X_scaled = scaler.transform(X_flows)
+    y_flows = (df_flows["Label"].to_numpy() != "BENIGN").astype(np.int64)
     sequences, seq_labels = build_sequences(X_scaled, y_flows, trans_config.SEQ_LEN, trans_config.SEQ_STRIDE)
 
     # 2. Extract Transformer signals
@@ -36,9 +42,9 @@ def generate_signals_csv(transformer_model, vae_model, dga_model, output_path: s
     transformer_probs = []
 
     # Identify BENIGN class index
-    benign_idx = 0
-    if "BENIGN" in label_encoder.classes_:
-        benign_idx = int(np.where(label_encoder.classes_ == "BENIGN")[0][0])
+    if "BENIGN" not in label_encoder.classes_:
+        raise ValueError("The saved Transformer label encoder does not contain BENIGN.")
+    benign_idx = int(np.where(label_encoder.classes_ == "BENIGN")[0][0])
 
     batch_size = trans_config.BATCH_SIZE
     with torch.no_grad():
@@ -61,7 +67,7 @@ def generate_signals_csv(transformer_model, vae_model, dga_model, output_path: s
     # 4. Extract DGA probabilities
     df_dga = pd.read_csv(dga_config.TEST_CSV)
     vocab = build_char_vocab(df_dga["domain"].astype(str).tolist())
-    X_dga, y_dga = encode_domains(df_dga["domain"].astype(str).tolist(), df_dga["label"].values, vocab, dga_config.MAX_LEN)
+    X_dga = encode_domains(df_dga["domain"].astype(str).tolist(), vocab, dga_config.MAX_LEN)
 
     dga_model.eval()
     dga_model.to(device)
@@ -83,7 +89,7 @@ def generate_signals_csv(transformer_model, vae_model, dga_model, output_path: s
         dga_probs = np.resize(dga_probs_array, len(sequences))
 
     # 5. Determine ground truth binary label (1 = Attack, 0 = Benign)
-    binary_labels = (seq_labels != benign_idx).astype(int)
+    binary_labels = seq_labels.astype(int)
 
     signals_df = pd.DataFrame({
         "transformer_confidence": transformer_probs,

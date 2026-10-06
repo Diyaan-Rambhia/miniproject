@@ -12,7 +12,7 @@ DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "data"))
 TRAIN_CSV = os.path.join(DATA_DIR, "cicids2017_train.csv")
 VAL_CSV   = os.path.join(DATA_DIR, "cicids2017_val.csv")
 TEST_CSV  = os.path.join(DATA_DIR, "cicids2017_test.csv")
-BASELINE_CHECKPOINT_PATH = os.path.abspath(os.path.join(BASE_DIR, "..", "transformer", "outputs", "checkpoint_best.pt"))
+BASELINE_CHECKPOINT_PATH = os.path.abspath(os.path.join(BASE_DIR, "..", "saved_weights", "transformer_final.pt"))
 OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
 SAVED_WEIGHTS_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "saved_weights"))
 

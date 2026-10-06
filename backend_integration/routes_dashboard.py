@@ -7,6 +7,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend_integration.db import get_db
+from backend_integration.model_loader import models_container
 from backend_integration.schemas import EventResponse, EventsListResponse
 
 router = APIRouter()
@@ -14,7 +15,17 @@ router = APIRouter()
 
 @router.get("/health")
 def health_check():
-    return {"status": "ok", "service": "Layered AI Defense Backend Integration Layer"}
+    return {
+        "status": "ok",
+        "service": "Layered AI Defense Backend Integration Layer",
+        "models": {
+            "transformer": models_container.transformer_model is not None,
+            "vae": models_container.vae_model is not None,
+            "dga": models_container.dga_model is not None,
+            "fusion": models_container.fusion_model is not None,
+            "adversarial": models_container.adversarial_model is not None,
+        },
+    }
 
 
 @router.get("/events", response_model=EventsListResponse)
@@ -41,29 +52,25 @@ def get_event_detail(event_id: str, db: sqlite3.Connection = Depends(get_db)):
 
 
 @router.get("/robustness")
-def get_robustness_results():
-    """
-    Returns adversarial robustness evaluation results comparing Baseline vs Hardened models under clean, FGSM, and PGD attacks.
-    """
-    return {
-        "results": [
-            {
-                "variant": "Baseline (Undefended)",
-                "clean_acc": 0.9850,
-                "clean_f1": 0.9820,
-                "fgsm_acc": 0.5410,
-                "fgsm_f1": 0.5120,
-                "pgd_acc": 0.4230,
-                "pgd_f1": 0.3950,
-            },
-            {
-                "variant": "Hardened (Adversarial Training)",
-                "clean_acc": 0.9780,
-                "clean_f1": 0.9750,
-                "fgsm_acc": 0.9120,
-                "fgsm_f1": 0.9080,
-                "pgd_acc": 0.8840,
-                "pgd_f1": 0.8790,
-            },
-        ]
-    }
+def get_robustness_results(db: sqlite3.Connection = Depends(get_db)):
+    """Return stored adversarial robustness results; empty until training runs have populated the table."""
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT run_id, timestamp, model_name, clean_acc, fgsm_acc, pgd_acc FROM robustness_results ORDER BY timestamp DESC"
+    )
+    rows = cursor.fetchall()
+    results = []
+    for row in rows:
+        results.append({
+            "run_id": row[0],
+            "timestamp": row[1],
+            "model_name": row[2],
+            "variant": row[2],
+            "clean_acc": row[3],
+            "clean_f1": None,
+            "fgsm_acc": row[4],
+            "fgsm_f1": None,
+            "pgd_acc": row[5],
+            "pgd_f1": None,
+        })
+    return {"results": results}

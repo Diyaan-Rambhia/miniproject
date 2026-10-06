@@ -6,7 +6,7 @@ ground explanation prompts. Imported by the prompt-building module.
 """
 
 # SET YOUR LLM PROVIDER HERE — this is the only line to change
-API_PROVIDER = "anthropic"   # "anthropic" or "openai"
+API_PROVIDER = "openrouter"   # "anthropic", "openai", or "openrouter"
 
 API_KEY_ENV_VAR = "LLM_API_KEY"
 

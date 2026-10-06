@@ -15,7 +15,8 @@ from backend_integration import config
 from backend_integration.db import get_db
 from backend_integration.schemas import ExplainRequest, ExplainResponse
 from backend_integration.model_loader import models_container
-from backend_integration.llm_explanation import generate_llm_explanation
+from backend_integration.inference_preprocess import scale_flow_sequence
+from models.llm_layer.llm_explanation import explain as llm_explain
 
 router = APIRouter()
 
@@ -23,6 +24,9 @@ EXP_DIR = os.path.abspath(os.path.join(config.PROJECT_ROOT, "models", "explainib
 
 
 def get_explainability_helpers():
+    if EXP_DIR not in sys.path:
+        sys.path.insert(0, EXP_DIR)
+
     spec_cfg = importlib.util.spec_from_file_location("exp_config", os.path.join(EXP_DIR, "config.py"))
     exp_cfg = importlib.util.module_from_spec(spec_cfg)
     spec_cfg.loader.exec_module(exp_cfg)
@@ -67,9 +71,19 @@ def explain_event(request: ExplainRequest, db: sqlite3.Connection = Depends(get_
         raise HTTPException(status_code=400, detail=f"No raw input sequence stored for event '{request.event_id}'.")
 
     try:
-        seq_matrix = np.array(json.loads(event["raw_sequence"]), dtype=np.float32)
+        raw_seq = np.array(json.loads(event["raw_sequence"]), dtype=np.float32)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse raw sequence JSON: {str(e)}")
+
+    expected_features = (
+        len(models_container.trans_feature_names)
+        if models_container.trans_feature_names is not None
+        else None
+    )
+    try:
+        seq_matrix = scale_flow_sequence(raw_seq, models_container.trans_scaler, expected_features)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err)) from err
 
     device = config.DEVICE
 
@@ -101,8 +115,19 @@ def explain_event(request: ExplainRequest, db: sqlite3.Connection = Depends(get_
             "top_shap_features": [{"timestep": 0, "feature": "Flow Duration", "shap_value": 0.42}],
         }
 
-    # 3. Plain-English Text via LLM Layer
-    plain_english = generate_llm_explanation(raw_explanation, float(event["threat_score"]))
+    # 3. Plain-English Text via canonical LLM Layer
+    class_names = list(models_container.trans_label_encoder.classes_) if models_container.trans_label_encoder is not None else ["BENIGN", "ATTACK"]
+    predicted_class = raw_explanation.get("predicted_class", event["predicted_class"])
+    if isinstance(predicted_class, str):
+        pred_idx = class_names.index(predicted_class) if predicted_class in class_names else 0
+        llm_input = {**raw_explanation, "predicted_class": pred_idx}
+    else:
+        llm_input = raw_explanation
+    try:
+        plain_english = llm_explain(llm_input, class_names)
+    except Exception as err:
+        print("Fallback plain-English explanation due to:", err)
+        plain_english = "Automated plain-English explanation is unavailable because the configured LLM service could not be reached."
 
     return ExplainResponse(
         event_id=event["event_id"],

@@ -5,6 +5,11 @@ pandas>=2.0.0
 scikit-learn>=1.2.0
 joblib>=1.2.0
 
+# API / Backend
+fastapi>=0.110.0
+uvicorn>=0.29.0
+pydantic>=2.7.0
+
 # Explainability
 shap>=0.42.0
 
@@ -12,3 +17,7 @@ shap>=0.42.0
 python-dotenv>=1.0.0
 anthropic>=0.18.0
 openai>=1.0.0
+
+# Testing
+pytest>=8.0.0
+httpx>=0.27.0

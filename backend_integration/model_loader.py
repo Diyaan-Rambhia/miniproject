@@ -13,6 +13,7 @@ from models.transformer.model import FlowTransformerClassifier
 from models.VAE.model import VAE
 from models.DGA_detector.model import DGALSTMClassifier
 from models.fusion_head.model import FusionMLP
+from models.Adverserial_robustness.model import FlowTransformerClassifier as AdversarialTransformerClassifier
 
 
 class ModelContainer:
@@ -32,6 +33,8 @@ class ModelContainer:
 
         self.fusion_model = None
         self.fusion_scaler = None
+
+        self.adversarial_model = None
 
         self.is_loaded = False
 
@@ -94,6 +97,23 @@ class ModelContainer:
             print("   [OK] Fusion Head loaded")
         else:
             print("   [WARN] Fusion head checkpoint not found at", config.FUSION_CHECKPOINT)
+
+        # 5. Load Adversarial Robustness Transformer (if available)
+        if os.path.exists(config.ADVERSARIAL_CHECKPOINT):
+            try:
+                self.adversarial_model = AdversarialTransformerClassifier(
+                    num_features=len(self.trans_feature_names) if self.trans_feature_names is not None else 78,
+                    num_classes=len(self.trans_label_encoder.classes_) if self.trans_label_encoder is not None else 2,
+                    d_model=128, nhead=4, num_layers=3, dim_feedforward=256, dropout=0.1
+                ).to(device)
+                self.adversarial_model.load_state_dict(torch.load(config.ADVERSARIAL_CHECKPOINT, map_location=device))
+                self.adversarial_model.eval()
+                print("   [OK] Adversarial model loaded")
+            except RuntimeError as error:
+                self.adversarial_model = None
+                print("   [WARN] Adversarial checkpoint is incompatible with the configured model:", error)
+        else:
+            print("   [WARN] Adversarial checkpoint not found at", config.ADVERSARIAL_CHECKPOINT)
 
         self.is_loaded = True
 

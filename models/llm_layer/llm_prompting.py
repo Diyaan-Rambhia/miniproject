@@ -81,5 +81,21 @@ def call_llm_api(prompt: str) -> str:
         )
         return response.choices[0].message.content
 
+    elif API_PROVIDER == "openrouter":
+        import openai
+
+        client = openai.OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+        )
+        # Placeholder free/cheap model choice; verify the current OpenRouter free-tier model
+        # list in the OpenRouter docs/dashboard before using this in production.
+        response = client.chat.completions.create(
+            model="meta-llama/llama-3.1-8b-instruct:free",
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.choices[0].message.content
+
     else:
         raise ValueError(f"Unsupported API_PROVIDER: {API_PROVIDER}")

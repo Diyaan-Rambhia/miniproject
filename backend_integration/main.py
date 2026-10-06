@@ -11,6 +11,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,10 +19,21 @@ from backend_integration.db import init_db
 from backend_integration.model_loader import models_container
 from backend_integration import routes_score, routes_explain, routes_dashboard
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("\n--- Initializing Backend Integration Layer ---")
+    init_db()
+    models_container.load_all()
+    print("--- Backend Service Initialized Successfully ---\n")
+    yield
+
+
 app = FastAPI(
     title="Layered AI Defense Pipeline — Backend API",
     description="FastAPI service serving scoring, dual-channel SHAP + attention explainability, and adversarial robustness telemetry.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS Middleware
@@ -45,14 +57,6 @@ app.add_middleware(
 app.include_router(routes_dashboard.router)
 app.include_router(routes_score.router)
 app.include_router(routes_explain.router)
-
-
-@app.on_event("startup")
-def on_startup():
-    print("\n--- Initializing Backend Integration Layer ---")
-    init_db()
-    models_container.load_all()
-    print("--- Backend Service Initialized Successfully ---\n")
 
 
 if __name__ == "__main__":

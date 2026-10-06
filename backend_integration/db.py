@@ -31,9 +31,37 @@ def init_db():
             raw_sequence TEXT
         )
     """)
+    try:
+        cursor.execute("ALTER TABLE events ADD COLUMN transformer_predicted_class TEXT")
+    except sqlite3.OperationalError:
+        pass
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS robustness_results (
+            run_id TEXT PRIMARY KEY,
+            timestamp REAL,
+            model_name TEXT,
+            clean_acc REAL,
+            fgsm_acc REAL,
+            pgd_acc REAL
+        )
+    """)
     conn.commit()
     conn.close()
     print(f"   [OK] SQLite Database initialized at: {DB_FILE}")
+
+
+def insert_robustness_result(run_id: str, model_name: str, clean_acc: float, fgsm_acc: float, pgd_acc: float, timestamp: float | None = None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT OR REPLACE INTO robustness_results (run_id, timestamp, model_name, clean_acc, fgsm_acc, pgd_acc)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (run_id, timestamp if timestamp is not None else __import__("time").time(), model_name, clean_acc, fgsm_acc, pgd_acc),
+    )
+    conn.commit()
+    conn.close()
 
 
 def get_db() -> Generator[sqlite3.Connection, None, None]:

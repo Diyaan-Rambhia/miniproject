@@ -28,9 +28,9 @@ os.makedirs(SAVED_WEIGHTS_DIR, exist_ok=True)
 WEIGHT_FILES = {
     "Transformer": os.path.join(SAVED_WEIGHTS_DIR, "transformer_final.pt"),
     "VAE": os.path.join(SAVED_WEIGHTS_DIR, "vae_final.pt"),
-    "DGA Detector": os.path.join(SAVED_WEIGHTS_DIR, "dga_detector_final.pt"),
-    "Fusion Head": os.path.join(SAVED_WEIGHTS_DIR, "fusion_head_final.pt"),
-    "Adversarial Hardened": os.path.join(SAVED_WEIGHTS_DIR, "adversarial_hardened_final.pt"),
+    "DGA Detector": os.path.join(SAVED_WEIGHTS_DIR, "dga_lstm_final.pt"),
+    "Fusion Head": os.path.join(SAVED_WEIGHTS_DIR, "fusion_mlp_final.pt"),
+    "Adversarial Hardened": os.path.join(SAVED_WEIGHTS_DIR, "hardened_transformer_final.pt"),
 }
 
 

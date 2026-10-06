@@ -4,8 +4,10 @@ Expects: Model instance, data_loader, attack_fn, criterion, device
 Outputs: Evaluation accuracy/macro_f1 scores clean and under attack; three-way robustness comparison table
 """
 
+import time
 import torch
 from sklearn.metrics import accuracy_score, f1_score
+from backend_integration.db import insert_robustness_result
 try:
     from models.Adverserial_robustness.attack import fgsm_attack, pgd_attack
 except ImportError:
@@ -62,6 +64,9 @@ def compare_robustness(model_before, model_after, test_loader, criterion, fgsm_e
             "fgsm_acc": fgsm_acc, "fgsm_f1": fgsm_f1,
             "pgd_acc": pgd_acc, "pgd_f1": pgd_f1,
         }
+
+        run_id = f"{name.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('.', '').replace('-', '_')}_{int(time.time())}"
+        insert_robustness_result(run_id, name, clean_acc, fgsm_acc, pgd_acc)
 
         print(f"\n{name}:")
         print(f"  Clean data:  acc={clean_acc:.4f}  macro_f1={clean_f1:.4f}")
